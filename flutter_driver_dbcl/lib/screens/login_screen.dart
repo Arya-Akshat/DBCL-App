@@ -30,7 +30,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     try {
       await ref.read(appControllerProvider.notifier).login(
             email: _emailController.text.trim(),
-            password: _passwordController.text,
+            password: _passwordController.text.trim(),
           );
     } catch (error) {
       if (mounted) {
@@ -130,6 +130,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     child: const Text('Create account'),
                   ),
                 ],
+              ),
+              const SizedBox(height: 12),
+              const Center(
+                child: Text(
+                  'Demo Login: demo@dbcl.com | Pass: demo',
+                  style: TextStyle(color: Colors.grey, fontSize: 12, fontStyle: FontStyle.italic),
+                ),
               ),
             ],
           ),

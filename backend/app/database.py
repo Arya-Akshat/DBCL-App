@@ -30,7 +30,7 @@ def init_db() -> None:
                 emergency_contact TEXT DEFAULT '',
                 profile_photo_path TEXT,
                 license_image_path TEXT,
-                score INTEGER NOT NULL DEFAULT 82
+                score INTEGER NOT NULL DEFAULT 1000
             );
 
             CREATE TABLE IF NOT EXISTS events (
@@ -50,7 +50,7 @@ def init_db() -> None:
                 user_id TEXT NOT NULL,
                 start_time TEXT NOT NULL,
                 end_time TEXT,
-                score INTEGER NOT NULL DEFAULT 82,
+                score INTEGER NOT NULL DEFAULT 1000,
                 events_count INTEGER NOT NULL DEFAULT 0,
                 active INTEGER NOT NULL DEFAULT 1,
                 FOREIGN KEY(user_id) REFERENCES users(user_id)

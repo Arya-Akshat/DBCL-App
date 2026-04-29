@@ -6,7 +6,7 @@ part of 'repository_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$ledgerRepositoryHash() => r'7ed3159cb81d9dd4832bcf640492427f786628e5';
+String _$ledgerRepositoryHash() => r'a62523701006a137f4d0ab844faccd0b8864f876';
 
 /// See also [ledgerRepository].
 @ProviderFor(ledgerRepository)

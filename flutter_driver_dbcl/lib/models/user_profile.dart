@@ -8,7 +8,7 @@ class UserProfile {
     this.emergencyContact = '',
     this.profilePhotoPath,
     this.licenseImagePath,
-    this.score = 82,
+    this.score = 1000,
   });
 
   final String userId;
@@ -68,7 +68,7 @@ class UserProfile {
       emergencyContact: json['emergency_contact'] as String? ?? '',
       profilePhotoPath: json['profile_photo_path'] as String?,
       licenseImagePath: json['license_image_path'] as String?,
-      score: json['score'] as int? ?? 82,
+      score: json['score'] as int? ?? 1000,
     );
   }
 }

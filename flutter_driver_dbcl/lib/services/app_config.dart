@@ -1,6 +1,6 @@
 class AppConfig {
   static const defaultBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://10.0.2.2:8000',
+    defaultValue: 'https://sugarlike-donny-nonevangelically.ngrok-free.dev',
   );
 }

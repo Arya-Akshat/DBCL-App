@@ -6,7 +6,8 @@ import time
 import uuid
 from typing import Any
 
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
 
 from .database import get_connection, init_db
 from .schemas import (
@@ -23,6 +24,69 @@ from .schemas import (
 
 app = FastAPI(title="DBCL Backend", version="0.1.0")
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# In-memory storage for live video feed (for demo purposes)
+latest_frames: dict[str, bytes] = {}
+latest_metadata: dict[str, dict[str, Any]] = {}
+
+@app.post("/video_feed/{user_id}")
+async def upload_video_frame(user_id: str, request: Request):
+    body = await request.body()
+    print(f"[FRAME] Received frame, size={len(body)} bytes")
+    latest_frames[user_id] = body
+    return {"status": "ok"}
+
+@app.get("/video_feed/{user_id}")
+async def get_video_frame(user_id: str):
+    if user_id not in latest_frames:
+        return Response(status_code=204)
+    return Response(content=latest_frames[user_id], media_type="image/jpeg", headers={"Access-Control-Allow-Origin": "*"})
+
+@app.post("/video_metadata/{user_id}")
+async def upload_video_metadata(user_id: str, payload: dict[str, Any]):
+    if user_id not in latest_metadata:
+        latest_metadata[user_id] = {"events": []}
+    
+    # Merge new metadata while preserving events
+    current_events = latest_metadata[user_id].get("events", [])
+    latest_metadata[user_id] = payload
+    latest_metadata[user_id]["events"] = current_events
+    return {"status": "ok"}
+
+@app.post("/log_event/{user_id}")
+async def log_event(user_id: str, body: dict[str, Any]):
+    if user_id not in latest_metadata:
+        latest_metadata[user_id] = {"events": []}
+    
+    events = latest_metadata[user_id].get("events", [])
+    from datetime import datetime
+    events.insert(0, {
+        "type": body.get("event_type", "unknown"),
+        "time": datetime.now().strftime("%H:%M:%S")
+    })
+    latest_metadata[user_id]["events"] = events[:5] # Keep latest 5
+    return {"status": "ok"}
+
+@app.get("/frame_metadata/{user_id}")
+async def get_frame_metadata(user_id: str):
+    meta = latest_metadata.get(user_id, {})
+    return {
+        "timestamp": meta.get("timestamp"),
+        "ear_score": meta.get("ear"),
+        "hand_on_wheel": meta.get("hand_on_wheel"),
+        "events": meta.get("events", [])
+    }
+
+@app.get("/health")
+async def health_check():
+    return {"status": "ok"}
 
 @app.on_event("startup")
 def startup_event() -> None:
@@ -96,7 +160,7 @@ def signup(payload: SignupRequest) -> AuthResponse:
                     "",
                     payload.profile_photo_path,
                     payload.license_image_path,
-                    82,
+                    1000,
                 ),
             )
             row = connection.execute("SELECT * FROM users WHERE user_id = ?", (user_id,)).fetchone()

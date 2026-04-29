@@ -6,6 +6,24 @@ part of 'usecase_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
+String _$aiVisionDataSourceHash() =>
+    r'18029aa6520007ea559c9a2eb4699533d83e9d83';
+
+/// See also [aiVisionDataSource].
+@ProviderFor(aiVisionDataSource)
+final aiVisionDataSourceProvider = Provider<AiVisionDataSource>.internal(
+  aiVisionDataSource,
+  name: r'aiVisionDataSourceProvider',
+  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+      ? null
+      : _$aiVisionDataSourceHash,
+  dependencies: null,
+  allTransitiveDependencies: null,
+);
+
+@Deprecated('Will be removed in 3.0. Use Ref instead')
+// ignore: unused_element
+typedef AiVisionDataSourceRef = ProviderRef<AiVisionDataSource>;
 String _$detectFatigueUseCaseHash() =>
     r'0818ceaaa870b309999581618ab2589843705d28';
 

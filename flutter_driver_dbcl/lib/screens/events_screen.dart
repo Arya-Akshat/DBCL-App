@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../models/event_record.dart';
 import '../providers/app_providers.dart';
+import '../presentation/providers/monitoring_provider.dart';
 
 final eventsProvider = FutureProvider<List<EventRecord>>((ref) async {
   final session = ref.watch(appControllerProvider).valueOrNull?.session;
@@ -35,16 +36,38 @@ class EventsScreen extends ConsumerWidget {
         ),
         body: eventsAsync.when(
           data: (events) {
-            final penaltyEvents = events.where((event) => event.isPenalty).toList();
-            final recoveryEvents = events.where((event) => event.isRecovery).toList();
+            final monitoringState = ref.watch(monitoringNotifierProvider);
             final now = DateTime.now();
+            final liveEvents = monitoringState.liveEvents.map((e) {
+              final type = e.when(
+                hardBrakeDetected: (_) => 'hard_brake',
+                fatigueDetected: (_, __) => 'fatigue',
+                drowsyDetected: (_, __) => 'drowsiness',
+                faceVerificationFailed: (_) => 'face_fail',
+                alcoholDetected: (_) => 'alcohol',
+                distractionDetected: (_) => 'distraction',
+                recoveryBonus: (reason, _) => 'recovery_$reason',
+              );
+              return EventRecord(
+                id: 'live-${now.millisecondsSinceEpoch}',
+                type: type,
+                duration: 1.0,
+                points: type == 'drowsiness' ? -50 : -20,
+                timestamp: now,
+                isRecovery: false,
+              );
+            }).toList();
+
+            final allEvents = [...liveEvents, ...events];
+            final penaltyEvents = allEvents.where((e) => e.isPenalty).toList();
+            final recoveryEvents = allEvents.where((e) => e.isRecovery).toList();
             final last7DayImages = penaltyEvents
-                .where((event) => event.imageUrl != null && now.difference(event.timestamp).inDays < 7)
+                .where((e) => e.imageUrl != null && now.difference(e.timestamp).inDays < 7)
                 .toList();
 
             return TabBarView(
               children: [
-                _EventsList(events: events, emptyMessage: 'No events yet.'),
+                _EventsList(events: allEvents, emptyMessage: 'No events yet.'),
                 _PenaltyView(events: penaltyEvents, images: last7DayImages),
                 _EventsList(events: recoveryEvents, emptyMessage: 'No recovery activity yet.'),
               ],

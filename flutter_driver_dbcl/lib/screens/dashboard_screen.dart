@@ -26,6 +26,49 @@ class DashboardScreen extends ConsumerWidget {
     final monitoringNotifier = ref.read(monitoringNotifierProvider.notifier);
     final scoreAsync = ref.watch(scoreSummaryProvider);
 
+    // Show SnackBar when alertMessage changes
+    ref.listen(monitoringNotifierProvider, (previous, next) {
+      if (next.alertMessage.isNotEmpty && next.alertMessage != previous?.alertMessage) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(next.alertMessage),
+            backgroundColor: next.alertMessage.contains("failed") || next.alertMessage.contains("required") 
+              ? AppColors.red 
+              : AppColors.accent,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    });
+
+    // Show Session Summary Dialog
+    ref.listen(monitoringNotifierProvider, (previous, next) {
+      if (next.sessionSummary != null && previous?.sessionSummary == null) {
+        final summary = next.sessionSummary!;
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            backgroundColor: AppColors.card,
+            title: const Text("Trip Summary", style: TextStyle(color: AppColors.text)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _SummaryRow(label: "Duration", value: "${summary['duration']}s"),
+                _SummaryRow(label: "Safety Events", value: "${summary['events']}"),
+                _SummaryRow(label: "Final Score", value: "${summary['score']}"),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("CLOSE", style: TextStyle(color: AppColors.accent)),
+              ),
+            ],
+          ),
+        );
+      }
+    });
+
     return Scaffold(
       appBar: AppBar(
         title: Text(user?.name ?? 'Driver Dashboard'),
@@ -144,6 +187,26 @@ class _QuickLink extends StatelessWidget {
             Text(label),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _SummaryRow extends StatelessWidget {
+  final String label;
+  final String value;
+  const _SummaryRow({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(color: AppColors.muted)),
+          Text(value, style: const TextStyle(color: AppColors.text, fontWeight: FontWeight.bold)),
+        ],
       ),
     );
   }

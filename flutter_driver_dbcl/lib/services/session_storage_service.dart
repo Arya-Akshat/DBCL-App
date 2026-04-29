@@ -17,15 +17,21 @@ class SessionStorageService {
   final FlutterSecureStorage _storage;
 
   Future<AppState> restoreState() async {
-    final sessionRaw = await _storage.read(key: _sessionKey);
-    final themeRaw = await _storage.read(key: _themeKey);
-    final biometricRaw = await _storage.read(key: _biometricKey);
+    try {
+      final sessionRaw = await _storage.read(key: _sessionKey);
+      final themeRaw = await _storage.read(key: _themeKey);
+      final biometricRaw = await _storage.read(key: _biometricKey);
 
-    return AppState(
-      session: sessionRaw == null ? null : AuthSession.fromJson(jsonDecode(sessionRaw) as Map<String, dynamic>),
-      themeMode: themeRaw == 'light' ? ThemeMode.light : ThemeMode.dark,
-      biometricEnabled: biometricRaw == 'true',
-    );
+      return AppState(
+        session: sessionRaw == null ? null : AuthSession.fromJson(jsonDecode(sessionRaw) as Map<String, dynamic>),
+        themeMode: themeRaw == 'light' ? ThemeMode.light : ThemeMode.dark,
+        biometricEnabled: biometricRaw == 'true',
+      );
+    } catch (e) {
+      debugPrint("DEBUG: Failed to restore state: $e. Clearing storage.");
+      await _storage.deleteAll();
+      return const AppState();
+    }
   }
 
   Future<void> saveSession(AuthSession session) {

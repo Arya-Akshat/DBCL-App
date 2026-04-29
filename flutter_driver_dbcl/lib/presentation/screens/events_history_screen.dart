@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
 import '../../domain/entities/driving_event.dart';
-import '../../services/api_service.dart';
+import '../../providers/app_providers.dart';
+import '../../models/event_record.dart';
 
 class EventsHistoryScreen extends ConsumerWidget {
   const EventsHistoryScreen({super.key});
@@ -16,26 +17,33 @@ class EventsHistoryScreen extends ConsumerWidget {
         title: const Text("Safety Events", style: TextStyle(color: AppColors.text, fontSize: 18)),
         elevation: 0,
       ),
-      body: FutureBuilder<List<DrivingEvent>>(
-        future: ApiService.fetchEvents().timeout(const Duration(seconds: 5), onTimeout: () => []),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
+      body: Consumer(
+        builder: (context, ref, child) {
+          final session = ref.watch(appControllerProvider).valueOrNull?.session;
+          if (session == null) return const Center(child: Text("Please login to see history"));
 
-          if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(
-              child: Text("No events recorded yet", style: TextStyle(color: AppColors.muted)),
-            );
-          }
+          return FutureBuilder<List<EventRecord>>(
+            future: ref.watch(dbclApiServiceProvider).fetchEvents(session.token),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
 
-          final events = snapshot.data!;
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: events.length,
-            itemBuilder: (context, index) {
-              final event = events[index];
-              return _EventCard(event: event);
+              if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
+                return const Center(
+                  child: Text("No events recorded yet", style: TextStyle(color: AppColors.muted)),
+                );
+              }
+
+              final events = snapshot.data!;
+              return ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: events.length,
+                itemBuilder: (context, index) {
+                  final event = events[index];
+                  return _EventCard(event: event);
+                },
+              );
             },
           );
         },
@@ -45,7 +53,7 @@ class EventsHistoryScreen extends ConsumerWidget {
 }
 
 class _EventCard extends StatelessWidget {
-  final DrivingEvent event;
+  final EventRecord event;
   const _EventCard({required this.event});
 
   @override
@@ -74,14 +82,17 @@ class _EventCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  event.toString().split('.').last.replaceAll('(', '').toUpperCase(),
+                  event.type.replaceAll('_', ' '),
                   style: const TextStyle(color: AppColors.text, fontWeight: FontWeight.bold),
                 ),
-                const Text("Just now", style: TextStyle(color: AppColors.muted, fontSize: 12)),
+                Text(
+                  DateTime.fromMillisecondsSinceEpoch(event.timestamp * 1000).toString(),
+                  style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                ),
               ],
             ),
           ),
-          const Text("-50 pts", style: TextStyle(color: AppColors.red, fontWeight: FontWeight.bold)),
+          Text("${event.points} pts", style: TextStyle(color: event.points < 0 ? AppColors.red : AppColors.green, fontWeight: FontWeight.bold)),
         ],
       ),
     );

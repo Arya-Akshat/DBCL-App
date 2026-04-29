@@ -31,7 +31,7 @@ class UserProfile(BaseModel):
     emergency_contact: str = ""
     profile_photo_path: str | None = None
     license_image_path: str | None = None
-    score: int = 82
+    score: int = 1000
 
 
 class AuthResponse(BaseModel):

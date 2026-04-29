@@ -25,7 +25,12 @@ mixin _$DriverState {
   bool get isMonitoring => throw _privateConstructorUsedError;
   bool get faceVisible => throw _privateConstructorUsedError;
   bool get isEmulator => throw _privateConstructorUsedError;
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  CameraController? get controller => throw _privateConstructorUsedError;
   String get alertMessage => throw _privateConstructorUsedError;
+  Map<String, dynamic>? get sessionSummary =>
+      throw _privateConstructorUsedError;
+  List<DrivingEvent> get liveEvents => throw _privateConstructorUsedError;
 
   /// Create a copy of DriverState
   /// with the given fields replaced by the non-null parameter values.
@@ -50,7 +55,11 @@ abstract class $DriverStateCopyWith<$Res> {
     bool isMonitoring,
     bool faceVisible,
     bool isEmulator,
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    CameraController? controller,
     String alertMessage,
+    Map<String, dynamic>? sessionSummary,
+    List<DrivingEvent> liveEvents,
   });
 }
 
@@ -77,7 +86,10 @@ class _$DriverStateCopyWithImpl<$Res, $Val extends DriverState>
     Object? isMonitoring = null,
     Object? faceVisible = null,
     Object? isEmulator = null,
+    Object? controller = freezed,
     Object? alertMessage = null,
+    Object? sessionSummary = freezed,
+    Object? liveEvents = null,
   }) {
     return _then(
       _value.copyWith(
@@ -113,10 +125,22 @@ class _$DriverStateCopyWithImpl<$Res, $Val extends DriverState>
                 ? _value.isEmulator
                 : isEmulator // ignore: cast_nullable_to_non_nullable
                       as bool,
+            controller: freezed == controller
+                ? _value.controller
+                : controller // ignore: cast_nullable_to_non_nullable
+                      as CameraController?,
             alertMessage: null == alertMessage
                 ? _value.alertMessage
                 : alertMessage // ignore: cast_nullable_to_non_nullable
                       as String,
+            sessionSummary: freezed == sessionSummary
+                ? _value.sessionSummary
+                : sessionSummary // ignore: cast_nullable_to_non_nullable
+                      as Map<String, dynamic>?,
+            liveEvents: null == liveEvents
+                ? _value.liveEvents
+                : liveEvents // ignore: cast_nullable_to_non_nullable
+                      as List<DrivingEvent>,
           )
           as $Val,
     );
@@ -141,7 +165,11 @@ abstract class _$$DriverStateImplCopyWith<$Res>
     bool isMonitoring,
     bool faceVisible,
     bool isEmulator,
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    CameraController? controller,
     String alertMessage,
+    Map<String, dynamic>? sessionSummary,
+    List<DrivingEvent> liveEvents,
   });
 }
 
@@ -167,7 +195,10 @@ class __$$DriverStateImplCopyWithImpl<$Res>
     Object? isMonitoring = null,
     Object? faceVisible = null,
     Object? isEmulator = null,
+    Object? controller = freezed,
     Object? alertMessage = null,
+    Object? sessionSummary = freezed,
+    Object? liveEvents = null,
   }) {
     return _then(
       _$DriverStateImpl(
@@ -203,10 +234,22 @@ class __$$DriverStateImplCopyWithImpl<$Res>
             ? _value.isEmulator
             : isEmulator // ignore: cast_nullable_to_non_nullable
                   as bool,
+        controller: freezed == controller
+            ? _value.controller
+            : controller // ignore: cast_nullable_to_non_nullable
+                  as CameraController?,
         alertMessage: null == alertMessage
             ? _value.alertMessage
             : alertMessage // ignore: cast_nullable_to_non_nullable
                   as String,
+        sessionSummary: freezed == sessionSummary
+            ? _value._sessionSummary
+            : sessionSummary // ignore: cast_nullable_to_non_nullable
+                  as Map<String, dynamic>?,
+        liveEvents: null == liveEvents
+            ? _value._liveEvents
+            : liveEvents // ignore: cast_nullable_to_non_nullable
+                  as List<DrivingEvent>,
       ),
     );
   }
@@ -224,8 +267,13 @@ class _$DriverStateImpl implements _DriverState {
     this.isMonitoring = false,
     this.faceVisible = false,
     this.isEmulator = false,
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    this.controller = null,
     this.alertMessage = '',
-  });
+    final Map<String, dynamic>? sessionSummary,
+    final List<DrivingEvent> liveEvents = const [],
+  }) : _sessionSummary = sessionSummary,
+       _liveEvents = liveEvents;
 
   @override
   @JsonKey()
@@ -252,12 +300,33 @@ class _$DriverStateImpl implements _DriverState {
   @JsonKey()
   final bool isEmulator;
   @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  final CameraController? controller;
+  @override
   @JsonKey()
   final String alertMessage;
+  final Map<String, dynamic>? _sessionSummary;
+  @override
+  Map<String, dynamic>? get sessionSummary {
+    final value = _sessionSummary;
+    if (value == null) return null;
+    if (_sessionSummary is EqualUnmodifiableMapView) return _sessionSummary;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableMapView(value);
+  }
+
+  final List<DrivingEvent> _liveEvents;
+  @override
+  @JsonKey()
+  List<DrivingEvent> get liveEvents {
+    if (_liveEvents is EqualUnmodifiableListView) return _liveEvents;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_liveEvents);
+  }
 
   @override
   String toString() {
-    return 'DriverState(driverId: $driverId, score: $score, currentEar: $currentEar, isDrowsy: $isDrowsy, isDistracted: $isDistracted, isMonitoring: $isMonitoring, faceVisible: $faceVisible, isEmulator: $isEmulator, alertMessage: $alertMessage)';
+    return 'DriverState(driverId: $driverId, score: $score, currentEar: $currentEar, isDrowsy: $isDrowsy, isDistracted: $isDistracted, isMonitoring: $isMonitoring, faceVisible: $faceVisible, isEmulator: $isEmulator, controller: $controller, alertMessage: $alertMessage, sessionSummary: $sessionSummary, liveEvents: $liveEvents)';
   }
 
   @override
@@ -280,8 +349,18 @@ class _$DriverStateImpl implements _DriverState {
                 other.faceVisible == faceVisible) &&
             (identical(other.isEmulator, isEmulator) ||
                 other.isEmulator == isEmulator) &&
+            (identical(other.controller, controller) ||
+                other.controller == controller) &&
             (identical(other.alertMessage, alertMessage) ||
-                other.alertMessage == alertMessage));
+                other.alertMessage == alertMessage) &&
+            const DeepCollectionEquality().equals(
+              other._sessionSummary,
+              _sessionSummary,
+            ) &&
+            const DeepCollectionEquality().equals(
+              other._liveEvents,
+              _liveEvents,
+            ));
   }
 
   @override
@@ -295,7 +374,10 @@ class _$DriverStateImpl implements _DriverState {
     isMonitoring,
     faceVisible,
     isEmulator,
+    controller,
     alertMessage,
+    const DeepCollectionEquality().hash(_sessionSummary),
+    const DeepCollectionEquality().hash(_liveEvents),
   );
 
   /// Create a copy of DriverState
@@ -317,7 +399,11 @@ abstract class _DriverState implements DriverState {
     final bool isMonitoring,
     final bool faceVisible,
     final bool isEmulator,
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    final CameraController? controller,
     final String alertMessage,
+    final Map<String, dynamic>? sessionSummary,
+    final List<DrivingEvent> liveEvents,
   }) = _$DriverStateImpl;
 
   @override
@@ -337,7 +423,14 @@ abstract class _DriverState implements DriverState {
   @override
   bool get isEmulator;
   @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  CameraController? get controller;
+  @override
   String get alertMessage;
+  @override
+  Map<String, dynamic>? get sessionSummary;
+  @override
+  List<DrivingEvent> get liveEvents;
 
   /// Create a copy of DriverState
   /// with the given fields replaced by the non-null parameter values.

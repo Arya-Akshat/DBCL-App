@@ -1,3 +1,4 @@
+import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
@@ -22,9 +23,9 @@ class DriverCameraPreview extends ConsumerWidget {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
-        child: !state.isMonitoring 
+      child: !state.isMonitoring || state.controller == null
           ? const Center(child: Text("Camera Feed Inactive", style: TextStyle(color: AppColors.muted)))
-          : const Center(child: Text("AI Monitoring Active", style: TextStyle(color: AppColors.accent, fontWeight: FontWeight.bold))),
+          : CameraPreview(state.controller!),
       ),
     );
   }

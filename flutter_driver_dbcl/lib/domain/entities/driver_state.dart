@@ -1,4 +1,6 @@
+import 'package:camera/camera.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'driving_event.dart';
 
 part 'driver_state.freezed.dart';
 
@@ -13,6 +15,9 @@ class DriverState with _$DriverState {
     @Default(false) bool isMonitoring,
     @Default(false) bool faceVisible,
     @Default(false) bool isEmulator,
+    @Default(null) @JsonKey(includeFromJson: false, includeToJson: false) CameraController? controller,
     @Default('') String alertMessage,
+    Map<String, dynamic>? sessionSummary,
+    @Default([]) List<DrivingEvent> liveEvents,
   }) = _DriverState;
 }

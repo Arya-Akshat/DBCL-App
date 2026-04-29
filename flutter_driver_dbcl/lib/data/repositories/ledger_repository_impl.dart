@@ -4,12 +4,14 @@ import '../../domain/entities/driving_event.dart';
 import '../../domain/repositories/ledger_repository.dart';
 import '../datasources/local_database.dart' as db;
 import '../../core/constants/scoring_rules.dart';
+import '../../services/dbcl_api_service.dart';
 
 class LedgerRepositoryImpl implements ILedgerRepository {
   final db.AppDatabase database;
   final _uuid = const Uuid();
+  final DbclApiService api;
 
-  LedgerRepositoryImpl(this.database);
+  LedgerRepositoryImpl(this.database, this.api);
 
   @override
   Future<void> applyScoreDelta(String driverId, int delta, DrivingEvent event) async {
@@ -29,7 +31,7 @@ class LedgerRepositoryImpl implements ILedgerRepository {
             ),
           );
 
-      // Log Event
+      // Log Event locally
       await database.into(database.drivingEvents).insert(
             db.DrivingEventsCompanion.insert(
               id: _uuid.v4(),
@@ -50,6 +52,28 @@ class LedgerRepositoryImpl implements ILedgerRepository {
               metadata: '{}', // Placeholder
             ),
           );
+
+      // Log Event to Backend
+      try {
+        final token = driverId; // In this app, token is currently the driverId (demo-token-...)
+        await api.createEvent(
+          token: token,
+          type: event.when(
+            hardBrakeDetected: (gForce) => 'HARD_BRAKE',
+            fatigueDetected: (ear, durationMs) => 'FATIGUE',
+            drowsyDetected: (ear, durationMs) => 'DROWSY',
+            faceVerificationFailed: (similarity) => 'FACE_FAIL',
+            alcoholDetected: (confidence) => 'ALCOHOL',
+            distractionDetected: (durationMs) => 'DISTRACTION',
+            recoveryBonus: (reason, points) => 'RECOVERY_$reason',
+          ),
+          points: delta,
+          duration: 0.0, // Default for now
+          timestamp: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        );
+      } catch (e) {
+        print("Backend sync failed: $e");
+      }
     });
   }
 

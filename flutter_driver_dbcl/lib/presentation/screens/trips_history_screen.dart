@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
-import '../../services/api_service.dart';
+import '../../providers/app_providers.dart';
+import '../../models/trip_record.dart';
 
 class TripsHistoryScreen extends ConsumerWidget {
   const TripsHistoryScreen({super.key});
@@ -15,26 +16,33 @@ class TripsHistoryScreen extends ConsumerWidget {
         title: const Text("Trip History", style: TextStyle(color: AppColors.text, fontSize: 18)),
         elevation: 0,
       ),
-      body: FutureBuilder<List<Map<String, dynamic>>>(
-        future: ApiService.fetchTrips().timeout(const Duration(seconds: 5), onTimeout: () => []),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
+      body: Consumer(
+        builder: (context, ref, child) {
+          final session = ref.watch(appControllerProvider).valueOrNull?.session;
+          if (session == null) return const Center(child: Text("Please login to see history"));
 
-          if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(
-              child: Text("No trips completed yet", style: TextStyle(color: AppColors.muted)),
-            );
-          }
+          return FutureBuilder<List<TripRecord>>(
+            future: ref.watch(dbclApiServiceProvider).fetchTrips(session.token),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
 
-          final trips = snapshot.data!;
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: trips.length,
-            itemBuilder: (context, index) {
-              final trip = trips[index];
-              return _TripCard(trip: trip);
+              if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
+                return const Center(
+                  child: Text("No trips completed yet", style: TextStyle(color: AppColors.muted)),
+                );
+              }
+
+              final trips = snapshot.data!;
+              return ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: trips.length,
+                itemBuilder: (context, index) {
+                  final trip = trips[index];
+                  return _TripCard(trip: trip);
+                },
+              );
             },
           );
         },
@@ -44,7 +52,7 @@ class TripsHistoryScreen extends ConsumerWidget {
 }
 
 class _TripCard extends StatelessWidget {
-  final dynamic trip;
+  final TripRecord trip;
   const _TripCard({required this.trip});
 
   @override
@@ -62,25 +70,23 @@ class _TripCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text("Today, 2:30 PM", style: TextStyle(color: AppColors.text, fontWeight: FontWeight.bold)),
+              Text(trip.startTime, style: const TextStyle(color: AppColors.text, fontWeight: FontWeight.bold)),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   color: AppColors.green.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(4),
                 ),
-                child: const Text("980 Score", style: TextStyle(color: AppColors.green, fontSize: 11, fontWeight: FontWeight.bold)),
+                child: Text("${trip.score} Score", style: const TextStyle(color: AppColors.green, fontSize: 11, fontWeight: FontWeight.bold)),
               ),
             ],
           ),
           const SizedBox(height: 12),
           Row(
             children: [
-              _TripStat(label: "DURATION", value: "45m"),
+              _TripStat(label: "END TIME", value: trip.endTime),
               const SizedBox(width: 24),
-              _TripStat(label: "EVENTS", value: "2"),
-              const SizedBox(width: 24),
-              _TripStat(label: "BONUS", value: "+10"),
+              _TripStat(label: "EVENTS", value: trip.eventsCount.toString()),
             ],
           ),
         ],
