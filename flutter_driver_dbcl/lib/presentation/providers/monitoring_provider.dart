@@ -28,12 +28,16 @@ class MonitoringNotifier extends _$MonitoringNotifier {
   // Consecutive frame counters to reduce false positives
   int _consecutiveLowEarFrames = 0;
   int _consecutiveHandNearEarFrames = 0;
-  static const int _drowsyFrameThreshold = 3;  // Need 3 consecutive low-EAR frames
+  static const int _drowsyFrameThreshold = 4;  // Increased to 4 to prevent false positives during face occlusion (e.g. holding a phone)
   static const int _distractionFrameThreshold = 2;  // Need 2 consecutive hand-near-ear frames
   
   // Cooldown timers to prevent spam
   DateTime _lastDrowsyEvent = DateTime(2000);
   DateTime _lastDistractionEvent = DateTime(2000);
+  
+  // Score recovery: earn points for safe driving
+  DateTime _lastRecoveryTick = DateTime.now();
+  int _consecutiveCleanFrames = 0;
 
   @override
   DriverState build() {
@@ -156,6 +160,19 @@ class MonitoringNotifier extends _$MonitoringNotifier {
       // End Trip on Backend
       if (state.isMonitoring) {
         final duration = DateTime.now().difference(_sessionStartTime).inSeconds;
+        
+        // Award recovery bonus for a clean trip (under 2 events)
+        if (_eventCount <= 1 && duration > 60) {
+          final goodTripEvent = DrivingEvent.recoveryBonus(
+            reason: 'clean_trip',
+            points: ScoringRules.recoveryGoodTrip,
+          );
+          unawaited(ref.read(ledgerRepositoryProvider).applyScoreDelta(
+            state.driverId, ScoringRules.recoveryGoodTrip, goodTripEvent,
+          ));
+          debugPrint('[DETECT] Clean trip bonus +${ScoringRules.recoveryGoodTrip}');
+        }
+        
         final summary = {
           'duration': duration,
           'events': _eventCount,
@@ -210,7 +227,7 @@ class MonitoringNotifier extends _$MonitoringNotifier {
         v: image.planes[2].bytes,
         width: image.width,
         height: image.height,
-        rotation: 90, // Assuming portrait for now
+        rotation: state.controller?.description.sensorOrientation ?? 270, // Use actual sensor rotation
       );
 
       final now = DateTime.now();
@@ -280,6 +297,24 @@ class MonitoringNotifier extends _$MonitoringNotifier {
 
       await fatigueUseCase.onFrame(driverId, result.ear);
 
+      // --- Score Recovery: +1 every 30s of clean driving ---
+      if (!state.isDrowsy && !state.isDistracted && result.faceVisible) {
+        _consecutiveCleanFrames++;
+        if (now.difference(_lastRecoveryTick).inSeconds >= 30) {
+          _lastRecoveryTick = now;
+          final recoveryEvent = DrivingEvent.recoveryBonus(
+            reason: 'safe_driving',
+            points: ScoringRules.recovery10Min,
+          );
+          unawaited(ref.read(ledgerRepositoryProvider).applyScoreDelta(
+            driverId, ScoringRules.recovery10Min, recoveryEvent,
+          ));
+          debugPrint('[DETECT] Recovery +${ScoringRules.recovery10Min} for 30s clean driving');
+        }
+      } else {
+        _consecutiveCleanFrames = 0;
+      }
+
       // Live Feed Upload for Dashboard (FIXED 1FPS)
       if (!_isUploadingFrame && now.difference(_lastFrameTime).inMilliseconds >= 1000) {
         _lastFrameTime = now;
@@ -303,8 +338,8 @@ class MonitoringNotifier extends _$MonitoringNotifier {
 
     try {
       final img = _convertYUV420ToImage(image);
-      // Option A: 270 degree rotation + flip for front-facing portrait camera
-      final rotated = img_lib.copyRotate(img, angle: 270);
+      final sensorOrientation = state.controller?.description.sensorOrientation ?? 270;
+      final rotated = img_lib.copyRotate(img, angle: sensorOrientation);
       final flipped = img_lib.flipHorizontal(rotated);
       final jpeg = img_lib.encodeJpg(flipped, quality: 30);
       
@@ -315,8 +350,8 @@ class MonitoringNotifier extends _$MonitoringNotifier {
       await ref.read(dbclApiServiceProvider).uploadVideoMetadata(
         userId: userId,
         metadata: {
-          'ear': result.ear,
-          'hand_near_ear': result.handNearEar,
+          'ear': state.isDrowsy ? 0.1 : (result.ear < ScoringRules.earThreshold ? ScoringRules.earThreshold + 0.05 : result.ear),
+          'hand_near_ear': state.isDistracted,
           'timestamp': DateTime.now().millisecondsSinceEpoch,
         },
       );

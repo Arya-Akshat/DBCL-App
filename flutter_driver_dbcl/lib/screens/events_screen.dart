@@ -6,7 +6,7 @@ import '../models/event_record.dart';
 import '../providers/app_providers.dart';
 import '../presentation/providers/monitoring_provider.dart';
 
-final eventsProvider = FutureProvider<List<EventRecord>>((ref) async {
+final eventsProvider = FutureProvider.autoDispose<List<EventRecord>>((ref) async {
   final session = ref.watch(appControllerProvider).valueOrNull?.session;
   if (session == null) {
     return const [];

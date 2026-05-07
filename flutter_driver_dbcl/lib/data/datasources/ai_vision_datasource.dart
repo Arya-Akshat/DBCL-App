@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 class AiVisionResult {
@@ -25,6 +26,7 @@ class AiVisionResult {
 
 class AiVisionDataSource {
   static const _channel = MethodChannel('com.kislay.driver_dbcl/ai');
+  int _frameCount = 0;
 
   Future<AiVisionResult> processFrame({
     required Uint8List y,
@@ -45,8 +47,18 @@ class AiVisionDataSource {
         'rotation': rotation,
         'detectFace': detectFace,
       });
-      return AiVisionResult.fromMap(result as Map);
+      final parsed = AiVisionResult.fromMap(result as Map);
+      
+      // Log every 10th frame to avoid spam but keep visibility
+      _frameCount++;
+      if (_frameCount % 10 == 0) {
+        debugPrint('[AI] Frame #$_frameCount: ear=${parsed.ear.toStringAsFixed(3)}, '
+            'face=${parsed.faceVisible}, hand=${parsed.handNearEar}');
+      }
+      
+      return parsed;
     } catch (e) {
+      debugPrint('[AI] ERROR processing frame: $e');
       return AiVisionResult(ear: 1.0, handNearEar: false, faceVisible: false);
     }
   }

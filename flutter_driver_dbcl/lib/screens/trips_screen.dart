@@ -5,7 +5,7 @@ import 'package:intl/intl.dart';
 import '../models/trip_record.dart';
 import '../providers/app_providers.dart';
 
-final tripsProvider = FutureProvider<List<TripRecord>>((ref) async {
+final tripsProvider = FutureProvider.autoDispose<List<TripRecord>>((ref) async {
   final session = ref.watch(appControllerProvider).valueOrNull?.session;
   if (session == null) {
     return const [];

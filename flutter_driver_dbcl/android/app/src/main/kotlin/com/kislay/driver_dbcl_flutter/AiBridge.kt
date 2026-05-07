@@ -117,12 +117,35 @@ class AiBridge(private val context: Context) {
     }
 
     private fun checkHandNearEar(handLms: List<NormalizedLandmark>, faceLms: List<NormalizedLandmark>): Boolean {
-        val leftEar  = faceLms[LEFT_EAR_LM]
-        val rightEar = faceLms[RIGHT_EAR_LM]
-        val finger   = handLms[8]
-        val dL = dist(Pair(finger.x(), finger.y()), Pair(leftEar.x(), leftEar.y()))
-        val dR = dist(Pair(finger.x(), finger.y()), Pair(rightEar.x(), rightEar.y()))
-        return dL < 0.15f || dR < 0.15f
+        val leftEar    = faceLms[234]
+        val rightEar   = faceLms[454]
+        val mouthLeft  = faceLms[61]
+        val mouthRight = faceLms[291]
+        
+        // A phone is typically held between the ear and the mouth.
+        // We check distance from hand landmarks to the side of the face.
+        val checkPoints = intArrayOf(0, 4, 8, 12, 16, 20)  // wrist + all fingertips
+        val THRESHOLD = 0.35f  // Generous threshold (35% of image dimensions)
+        
+        for (idx in checkPoints) {
+            val point = handLms[idx]
+            val px = point.x()
+            val py = point.y()
+            
+            // Distance to left side of face (ear or mouth)
+            val dL = minOf(
+                dist(Pair(px, py), Pair(leftEar.x(), leftEar.y())),
+                dist(Pair(px, py), Pair(mouthLeft.x(), mouthLeft.y()))
+            )
+            // Distance to right side of face (ear or mouth)
+            val dR = minOf(
+                dist(Pair(px, py), Pair(rightEar.x(), rightEar.y())),
+                dist(Pair(px, py), Pair(mouthRight.x(), mouthRight.y()))
+            )
+            
+            if (dL < THRESHOLD || dR < THRESHOLD) return true
+        }
+        return false
     }
 
     private fun dist(a: Pair<Float, Float>, b: Pair<Float, Float>): Float {
