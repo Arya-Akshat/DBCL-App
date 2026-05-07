@@ -219,7 +219,10 @@ class MonitoringNotifier extends _$MonitoringNotifier {
       final fatigueUseCase = ref.read(detectFatigueUseCaseProvider);
       final driverId = state.driverId;
 
-      if (driverId.isEmpty) return;
+      if (driverId.isEmpty) {
+        _isProcessing = false;
+        return;
+      }
 
       final result = await aiDataSource.processFrame(
         y: image.planes[0].bytes,
@@ -319,13 +322,20 @@ class MonitoringNotifier extends _$MonitoringNotifier {
 
       // Live Feed Upload for Dashboard (FIXED 1FPS)
       if (!_isUploadingFrame && now.difference(_lastFrameTime).inMilliseconds >= 1000) {
+        debugPrint('[MONITOR] Starting frame upload attempt for $driverId');
         _lastFrameTime = now;
         _isUploadingFrame = true;
-        _uploadFrame(image, driverId, result).then((_) => _isUploadingFrame = false);
+        _uploadFrame(image, driverId, result).then((_) {
+          _isUploadingFrame = false;
+          debugPrint('[MONITOR] Frame upload sequence finished');
+        }).catchError((e) {
+          _isUploadingFrame = false;
+          debugPrint('[MONITOR] Frame upload failed: $e');
+        });
       }
       
     } catch (e) {
-      debugPrint("AI Processing Error: $e");
+      debugPrint("[MONITOR] AI Processing Error: $e");
     } finally {
       _isProcessing = false;
     }
@@ -349,14 +359,15 @@ class MonitoringNotifier extends _$MonitoringNotifier {
       debugPrint('[UPLOAD] Posting frame to: $uploadUrl, size: ${jpeg.length} bytes');
       
       // Upload metadata first
-      await ref.read(dbclApiServiceProvider).uploadVideoMetadata(
+      // Upload metadata in background to avoid blocking the camera loop
+      unawaited(ref.read(dbclApiServiceProvider).uploadVideoMetadata(
         userId: userId,
         metadata: {
           'ear': state.isDrowsy ? 0.1 : (result.ear < ScoringRules.earThreshold ? ScoringRules.earThreshold + 0.05 : result.ear),
           'hand_near_ear': state.isDistracted,
           'timestamp': DateTime.now().millisecondsSinceEpoch,
         },
-      );
+      ));
 
       await ref.read(dbclApiServiceProvider).uploadVideoFrame(
         userId: userId,

@@ -4,6 +4,8 @@
 
 ![DBCL Dashboard Banner](images/banner.png)
 
+### 📺 [Watch the Demo Video (demo.mp4)](./demo.mp4)
+
 ## 🌟 Key Features
 
 *   **Edge AI Vision**: Uses a highly optimized native Kotlin bridge to run Google's **MediaPipe Face Mesh** and **Hand Landmarker** at 30 FPS directly on the phone. Zero latency and no internet required for detection.
@@ -48,7 +50,14 @@ pip install -r requirements.txt
 fastapi dev app/main.py
 ```
 
-### 2. Run the Flutter App
+### 2. Start the Monitoring Dashboard
+In a separate terminal:
+```bash
+cd backend
+streamlit run dashboard.py
+```
+
+### 3. Run the Flutter App
 ```bash
 git clone https://github.com/Arya-Akshat/DBCL-App.git
 cd DBCL-App/flutter_driver_dbcl

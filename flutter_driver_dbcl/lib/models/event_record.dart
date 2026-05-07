@@ -26,13 +26,15 @@ class EventRecord {
         : DateTime.tryParse(rawTimestamp?.toString() ?? '') ?? DateTime.now();
 
     return EventRecord(
-      id: json['id'] as String? ?? '${json['type']}-${parsedTimestamp.millisecondsSinceEpoch}',
+      id: json['id']?.toString() ?? '${json['type']}-${parsedTimestamp.millisecondsSinceEpoch}',
       type: json['type'] as String? ?? 'unknown',
       duration: (json['duration'] as num?)?.toDouble() ?? 0,
       timestamp: parsedTimestamp,
       points: json['points'] as int? ?? -5,
       imageUrl: json['image_url'] as String? ?? json['snapshot_path'] as String?,
-      isRecovery: json['is_recovery'] as bool? ?? ((json['points'] as int? ?? 0) > 0),
+      isRecovery: (json['is_recovery'] is int)
+          ? (json['is_recovery'] as int) == 1
+          : (json['is_recovery'] as bool? ?? ((json['points'] as int? ?? 0) > 0)),
     );
   }
 }

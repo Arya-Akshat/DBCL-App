@@ -177,8 +177,8 @@ class DbclApiService {
       _throwForResponse(response, fallback: 'Failed to load events');
     } on ApiException {
       rethrow;
-    } catch (_) {
-      throw const ApiException('Unable to reach backend server.');
+    } catch (e) {
+      throw ApiException('API Error (Events): $e');
     }
   }
 
@@ -195,8 +195,8 @@ class DbclApiService {
       _throwForResponse(response, fallback: 'Failed to load trips');
     } on ApiException {
       rethrow;
-    } catch (_) {
-      throw const ApiException('Unable to reach backend server.');
+    } catch (e) {
+      throw ApiException('API Error (Trips): $e');
     }
   }
 

@@ -5,7 +5,7 @@ from datetime import datetime
 
 # 1. Configuration
 BASE_URL = "http://localhost:8000"
-USER_ID = "DEMO-001"
+USER_ID = "demo-token-12345"
 HEADERS = {"ngrok-skip-browser-warning": "true"}
 
 st.set_page_config(

@@ -40,7 +40,7 @@ latest_metadata: dict[str, dict[str, Any]] = {}
 @app.post("/video_feed/{user_id}")
 async def upload_video_frame(user_id: str, request: Request):
     body = await request.body()
-    print(f"[FRAME] Received frame, size={len(body)} bytes")
+    print(f"[BACKEND] Received frame from {user_id}, size={len(body)} bytes")
     latest_frames[user_id] = body
     
     # Initialize metadata entry if not present
@@ -87,7 +87,7 @@ async def get_frame_metadata(user_id: str):
     return {
         "timestamp": meta.get("timestamp"),
         "ear_score": meta.get("ear"),
-        "hand_on_wheel": meta.get("hand_on_wheel"),
+        "hand_near_ear": meta.get("hand_near_ear"),
         "events": meta.get("events", [])
     }
 
@@ -98,6 +98,15 @@ async def health_check():
 @app.on_event("startup")
 def startup_event() -> None:
     init_db()
+    # Ensure test users exist for bypass testing
+    with get_connection() as connection:
+        for uid in ["DEMO-001", "demo-token-12345"]:
+            existing = connection.execute("SELECT user_id FROM users WHERE user_id = ?", (uid,)).fetchone()
+            if not existing:
+                connection.execute(
+                    "INSERT INTO users (user_id, name, phone, address, email, password_hash, score) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (uid, "Demo Driver", "000", "Bypass", f"demo_{uid}@example.com", "bypass", 1000)
+                )
 
 
 def _hash_password(password: str) -> str:

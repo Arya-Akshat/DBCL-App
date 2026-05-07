@@ -45,8 +45,11 @@ class AiBridge(private val context: Context) {
             .build()
         val handOptions = HandLandmarker.HandLandmarkerOptions.builder()
             .setBaseOptions(handBaseOptions)
-            .setNumHands(1)
+            .setNumHands(2)
             .setRunningMode(RunningMode.IMAGE)
+            .setMinHandDetectionConfidence(0.1f)
+            .setMinHandPresenceConfidence(0.1f)
+            .setMinTrackingConfidence(0.1f)
             .build()
         handLandmarker = HandLandmarker.createFromOptions(context, handOptions)
 
