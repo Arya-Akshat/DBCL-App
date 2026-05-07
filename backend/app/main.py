@@ -6,6 +6,7 @@ import time
 import uuid
 from typing import Any
 
+import time
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -41,6 +42,12 @@ async def upload_video_frame(user_id: str, request: Request):
     body = await request.body()
     print(f"[FRAME] Received frame, size={len(body)} bytes")
     latest_frames[user_id] = body
+    
+    # Initialize metadata entry if not present
+    if user_id not in latest_metadata:
+        latest_metadata[user_id] = {"events": []}
+    latest_metadata[user_id]["timestamp"] = int(time.time() * 1000)
+    
     return {"status": "ok"}
 
 @app.get("/video_feed/{user_id}")

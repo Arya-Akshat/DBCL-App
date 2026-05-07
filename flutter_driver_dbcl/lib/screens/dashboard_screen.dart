@@ -1,19 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/constants/scoring_rules.dart';
 import '../core/theme/app_colors.dart';
-import '../models/score_summary.dart';
 import '../presentation/providers/monitoring_provider.dart';
 import '../providers/app_providers.dart';
-import '../widgets/status_card.dart';
-
-final scoreSummaryProvider = FutureProvider<ScoreSummary>((ref) async {
-  final session = ref.watch(appControllerProvider).valueOrNull?.session;
-  if (session == null) {
-    return const ScoreSummary(score: 82, ranking: 'Professional');
-  }
-  return ref.read(dbclApiServiceProvider).fetchScore(session.token);
-});
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -24,7 +15,6 @@ class DashboardScreen extends ConsumerWidget {
     final user = appState?.currentUser;
     final monitoringState = ref.watch(monitoringNotifierProvider);
     final monitoringNotifier = ref.read(monitoringNotifierProvider.notifier);
-    final scoreAsync = ref.watch(scoreSummaryProvider);
 
     // Show SnackBar when alertMessage changes
     ref.listen(monitoringNotifierProvider, (previous, next) {
@@ -69,6 +59,9 @@ class DashboardScreen extends ConsumerWidget {
       }
     });
 
+    final score = monitoringState.score;
+    final band = ScoringRules.getBand(score);
+
     return Scaffold(
       appBar: AppBar(
         title: Text(user?.name ?? 'Driver Dashboard'),
@@ -78,69 +71,266 @@ class DashboardScreen extends ConsumerWidget {
             child: Center(
               child: Text(
                 user?.userId ?? 'DBCL',
-                style: const TextStyle(fontWeight: FontWeight.w600),
+                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
               ),
             ),
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
+      body: Column(
         children: [
-          scoreAsync.when(
-            data: (score) => Card(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Driver Score', style: Theme.of(context).textTheme.titleMedium),
-                    const SizedBox(height: 12),
-                    Text('${score.score}', style: Theme.of(context).textTheme.displaySmall?.copyWith(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
-                    _RankingChip(label: score.ranking),
-                  ],
-                ),
-              ),
-            ),
-            loading: () => const Card(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator())),
-            error: (error, stackTrace) => const SizedBox.shrink(),
-          ),
-          const SizedBox(height: 16),
-          StatusCard(
-            title: 'Start Monitoring',
-            subtitle: monitoringState.alertMessage.isNotEmpty
-                ? monitoringState.alertMessage
-                : 'Camera, location, and sensors are requested only when monitoring starts.',
-            child: SizedBox(
+          // ========== CAMERA ACTIVE BANNER ==========
+          if (monitoringState.isMonitoring)
+            Container(
               width: double.infinity,
-              child: FilledButton(
-                onPressed: monitoringState.isEmulator
-                    ? null
-                    : () {
-                        if (monitoringState.isMonitoring) {
-                          monitoringNotifier.stopMonitoring();
-                        } else {
-                          monitoringNotifier.startMonitoring();
-                        }
-                      },
-                style: FilledButton.styleFrom(
-                  backgroundColor: monitoringState.isMonitoring ? AppColors.red : AppColors.accent,
-                  foregroundColor: Colors.black,
+              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFFFF4560), Color(0xFFFF7A30)],
                 ),
-                child: Text(monitoringState.isMonitoring ? 'Stop Monitoring' : 'Start Monitoring'),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.videocam, color: Colors.white, size: 18),
+                  SizedBox(width: 8),
+                  Text(
+                    '🔴 Camera Active — Monitoring in progress',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
-          const SizedBox(height: 16),
-          const Row(
-            children: [
-              Expanded(child: _QuickLink(icon: Icons.event_note, label: 'Events')),
-              SizedBox(width: 12),
-              Expanded(child: _QuickLink(icon: Icons.route, label: 'Trips')),
-              SizedBox(width: 12),
-              Expanded(child: _QuickLink(icon: Icons.person, label: 'Profile')),
-            ],
+
+          // ========== MAIN CONTENT ==========
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.all(20),
+              children: [
+                // ========== SCORE CARD ==========
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            // Score Ring
+                            SizedBox(
+                              width: 80,
+                              height: 80,
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  SizedBox(
+                                    width: 80,
+                                    height: 80,
+                                    child: CircularProgressIndicator(
+                                      value: score / ScoringRules.maxScore,
+                                      strokeWidth: 6,
+                                      backgroundColor: AppColors.border,
+                                      valueColor: AlwaysStoppedAnimation<Color>(band.color),
+                                    ),
+                                  ),
+                                  Text(
+                                    '$score',
+                                    style: TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.bold,
+                                      color: band.color,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 20),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Driver Score', style: Theme.of(context).textTheme.titleMedium),
+                                  const SizedBox(height: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                    decoration: BoxDecoration(
+                                      color: band.color.withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      '${band.emoji} ${band.label}',
+                                      style: TextStyle(color: band.color, fontWeight: FontWeight.w600, fontSize: 13),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'out of ${ScoringRules.maxScore}',
+                                    style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // ========== MONITORING CONTROL ==========
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Monitoring', style: Theme.of(context).textTheme.titleMedium),
+                        const SizedBox(height: 8),
+                        Text(
+                          monitoringState.alertMessage.isNotEmpty
+                              ? monitoringState.alertMessage
+                              : 'Tap below to start real-time safety monitoring.',
+                          style: const TextStyle(color: AppColors.muted, fontSize: 13),
+                        ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton.icon(
+                            onPressed: monitoringState.isEmulator
+                                ? null
+                                : () {
+                                    if (monitoringState.isMonitoring) {
+                                      monitoringNotifier.stopMonitoring();
+                                    } else {
+                                      monitoringNotifier.startMonitoring();
+                                    }
+                                  },
+                            icon: Icon(monitoringState.isMonitoring ? Icons.stop : Icons.play_arrow),
+                            label: Text(monitoringState.isMonitoring ? 'Stop Monitoring' : 'Start Monitoring'),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: monitoringState.isMonitoring ? AppColors.red : AppColors.accent,
+                              foregroundColor: Colors.black,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // ========== LIVE METRICS (only while monitoring) ==========
+                if (monitoringState.isMonitoring) ...[
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Live AI Metrics', style: Theme.of(context).textTheme.titleMedium),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _MetricTile(
+                                  label: 'EAR Score',
+                                  value: monitoringState.currentEar.toStringAsFixed(3),
+                                  icon: Icons.visibility,
+                                  color: monitoringState.currentEar < ScoringRules.earThreshold
+                                      ? AppColors.red
+                                      : AppColors.green,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _MetricTile(
+                                  label: 'Face Visible',
+                                  value: monitoringState.faceVisible ? 'YES' : 'NO',
+                                  icon: Icons.face,
+                                  color: monitoringState.faceVisible ? AppColors.green : AppColors.yellow,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _MetricTile(
+                                  label: 'Drowsy',
+                                  value: monitoringState.isDrowsy ? 'ALERT' : 'OK',
+                                  icon: Icons.airline_seat_recline_normal,
+                                  color: monitoringState.isDrowsy ? AppColors.red : AppColors.green,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _MetricTile(
+                                  label: 'Distracted',
+                                  value: monitoringState.isDistracted ? 'ALERT' : 'OK',
+                                  icon: Icons.phone_in_talk,
+                                  color: monitoringState.isDistracted ? AppColors.red : AppColors.green,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
+                // ========== RECENT EVENTS ==========
+                if (monitoringState.liveEvents.isNotEmpty)
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Recent Events (${monitoringState.liveEvents.length})',
+                              style: Theme.of(context).textTheme.titleMedium),
+                          const SizedBox(height: 12),
+                          ...monitoringState.liveEvents.take(5).map((event) {
+                            final type = event.when(
+                              hardBrakeDetected: (_) => 'Hard Brake',
+                              fatigueDetected: (_, __) => 'Fatigue',
+                              drowsyDetected: (_, __) => 'Drowsiness',
+                              faceVerificationFailed: (_) => 'Face Fail',
+                              alcoholDetected: (_) => 'Alcohol',
+                              distractionDetected: (_) => 'Distraction',
+                              recoveryBonus: (reason, _) => 'Recovery: $reason',
+                            );
+                            final isWarning = type == 'Drowsiness' || type == 'Distraction';
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    isWarning ? Icons.warning_amber_rounded : Icons.info_outline,
+                                    color: isWarning ? AppColors.red : AppColors.yellow,
+                                    size: 18,
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Text(type, style: const TextStyle(color: AppColors.text)),
+                                ],
+                              ),
+                            );
+                          }),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ],
       ),
@@ -148,45 +338,41 @@ class DashboardScreen extends ConsumerWidget {
   }
 }
 
-class _RankingChip extends StatelessWidget {
-  const _RankingChip({required this.label});
-
+class _MetricTile extends StatelessWidget {
   final String label;
+  final String value;
+  final IconData icon;
+  final Color color;
+
+  const _MetricTile({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.accent.withValues(alpha: 0.12),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
-      child: Text('Ranking: $label'),
-    );
-  }
-}
-
-class _QuickLink extends StatelessWidget {
-  const _QuickLink({
-    required this.icon,
-    required this.label,
-  });
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 18),
-        child: Column(
-          children: [
-            Icon(icon),
-            const SizedBox(height: 10),
-            Text(label),
-          ],
-        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 16, color: color),
+              const SizedBox(width: 6),
+              Text(label, style: TextStyle(color: AppColors.muted, fontSize: 11)),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(value, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 16)),
+        ],
       ),
     );
   }

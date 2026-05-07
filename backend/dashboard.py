@@ -28,9 +28,10 @@ with col_left:
             headers=HEADERS,
             timeout=3
         )
-        if r.status_code == 200:
-            # Note: channels="BGR" was requested, though JPEG is usually RGB
-            st.image(r.content, channels="BGR", width=400)
+        if r.status_code == 200 and len(r.content) > 1000:
+            st.image(r.content, width=400)
+        elif r.status_code == 200:
+            st.info("⏳ Waiting for a real frame from the driver...")
         elif r.status_code == 204:
             st.info("⏳ Waiting for driver to start monitoring...")
         else:

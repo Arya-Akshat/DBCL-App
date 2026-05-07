@@ -6,6 +6,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../core/utils/permission_manager.dart';
+import '../../core/constants/scoring_rules.dart';
 import '../../domain/entities/driver_state.dart';
 import '../../domain/entities/driving_event.dart';
 import '../../providers/app_providers.dart';
@@ -23,6 +24,16 @@ class MonitoringNotifier extends _$MonitoringNotifier {
   DateTime _lastFrameTime = DateTime.now();
   DateTime _sessionStartTime = DateTime.now();
   bool _isUploadingFrame = false;
+
+  // Consecutive frame counters to reduce false positives
+  int _consecutiveLowEarFrames = 0;
+  int _consecutiveHandNearEarFrames = 0;
+  static const int _drowsyFrameThreshold = 3;  // Need 3 consecutive low-EAR frames
+  static const int _distractionFrameThreshold = 2;  // Need 2 consecutive hand-near-ear frames
+  
+  // Cooldown timers to prevent spam
+  DateTime _lastDrowsyEvent = DateTime(2000);
+  DateTime _lastDistractionEvent = DateTime(2000);
 
   @override
   DriverState build() {
@@ -204,54 +215,67 @@ class MonitoringNotifier extends _$MonitoringNotifier {
 
       final now = DateTime.now();
       
-      // Drowsiness Detection
-      if (result.ear < 0.2 && !state.isDrowsy) {
+      // --- Drowsiness Detection (with consecutive frame filtering) ---
+      if (result.ear < ScoringRules.earThreshold && result.faceVisible) {
+        _consecutiveLowEarFrames++;
+      } else {
+        _consecutiveLowEarFrames = 0;
+        if (state.isDrowsy) {
+          state = state.copyWith(isDrowsy: false);
+        }
+      }
+
+      // Only trigger after N consecutive frames AND cooldown expired
+      final drowsyCooldownOk = now.difference(_lastDrowsyEvent).inMilliseconds > ScoringRules.drowsyCooldownMs;
+      if (_consecutiveLowEarFrames >= _drowsyFrameThreshold && !state.isDrowsy && drowsyCooldownOk) {
+        _lastDrowsyEvent = now;
         final event = DrivingEvent.drowsyDetected(
           ear: result.ear,
-          durationMs: 1000,
+          durationMs: _consecutiveLowEarFrames * 300,
         );
-        
         state = state.copyWith(
           isDrowsy: true,
-          currentEar: result.ear,
-          faceVisible: result.faceVisible,
           liveEvents: [event, ...state.liveEvents],
         );
-        
-        unawaited(ref.read(ledgerRepositoryProvider).applyScoreDelta(driverId, -50, event));
+        unawaited(ref.read(ledgerRepositoryProvider).applyScoreDelta(driverId, ScoringRules.drowsyPenalty, event));
         unawaited(ref.read(dbclApiServiceProvider).logEvent(
           userId: driverId,
           event: {'event_type': 'drowsiness', 'timestamp': now.millisecondsSinceEpoch},
         ));
-        
         _eventCount++;
-      } else if (result.ear >= 0.2 && state.isDrowsy) {
-        state = state.copyWith(isDrowsy: false, currentEar: result.ear, faceVisible: result.faceVisible);
-      } else {
-        state = state.copyWith(currentEar: result.ear, faceVisible: result.faceVisible);
+        debugPrint('[DETECT] Drowsiness confirmed after $_consecutiveLowEarFrames frames, EAR=${result.ear}');
       }
 
-      // Distraction Detection
-      if (result.handNearEar && !state.isDistracted) {
+      // Always update visual state
+      state = state.copyWith(currentEar: result.ear, faceVisible: result.faceVisible);
+
+      // --- Distraction Detection (with consecutive frame filtering) ---
+      if (result.handNearEar) {
+        _consecutiveHandNearEarFrames++;
+      } else {
+        _consecutiveHandNearEarFrames = 0;
+        if (state.isDistracted) {
+          state = state.copyWith(isDistracted: false);
+        }
+      }
+
+      final distractionCooldownOk = now.difference(_lastDistractionEvent).inMilliseconds > ScoringRules.distractionCooldownMs;
+      if (_consecutiveHandNearEarFrames >= _distractionFrameThreshold && !state.isDistracted && distractionCooldownOk) {
+        _lastDistractionEvent = now;
         final event = DrivingEvent.distractionDetected(
-          durationMs: 1000,
+          durationMs: _consecutiveHandNearEarFrames * 300,
         );
-        
         state = state.copyWith(
           isDistracted: true,
           liveEvents: [event, ...state.liveEvents],
         );
-        
-        unawaited(ref.read(ledgerRepositoryProvider).applyScoreDelta(driverId, -20, event));
+        unawaited(ref.read(ledgerRepositoryProvider).applyScoreDelta(driverId, ScoringRules.distractionPenalty, event));
         unawaited(ref.read(dbclApiServiceProvider).logEvent(
           userId: driverId,
           event: {'event_type': 'distraction', 'timestamp': now.millisecondsSinceEpoch},
         ));
-        
         _eventCount++;
-      }
- else if (!result.handNearEar && state.isDistracted) {
-        state = state.copyWith(isDistracted: false);
+        debugPrint('[DETECT] Distraction confirmed after $_consecutiveHandNearEarFrames frames');
       }
 
       await fatigueUseCase.onFrame(driverId, result.ear);
