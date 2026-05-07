@@ -42,7 +42,7 @@ class MonitoringNotifier extends _$MonitoringNotifier {
   @override
   DriverState build() {
     _checkMonitoringAvailability();
-    final driverId = ref.watch(appControllerProvider).valueOrNull?.currentUser?.userId ?? '';
+    final driverId = ref.watch(appControllerProvider).valueOrNull?.session?.token ?? '';
 
     final repo = ref.watch(ledgerRepositoryProvider);
     if (driverId.isNotEmpty) {
@@ -270,8 +270,10 @@ class MonitoringNotifier extends _$MonitoringNotifier {
       if (result.handNearEar) {
         _consecutiveHandNearEarFrames++;
       } else {
-        _consecutiveHandNearEarFrames = 0;
-        if (state.isDistracted) {
+        if (_consecutiveHandNearEarFrames > 0) {
+          _consecutiveHandNearEarFrames--;
+        }
+        if (state.isDistracted && _consecutiveHandNearEarFrames == 0) {
           state = state.copyWith(isDistracted: false);
         }
       }

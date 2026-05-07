@@ -47,7 +47,7 @@ class AppController extends AsyncNotifier<AppState> {
     if (cleanEmail == 'demo@dbcl.com' || cleanEmail == 'admin') {
       debugPrint("DEBUG: HARD BYPASS TRIGGERED for $cleanEmail");
       final session = const AuthSession(
-        token: 'demo-token-12345',
+        token: 'DEMO-001',
         user: UserProfile(
           userId: 'DEMO-001',
           name: 'Demo Driver',

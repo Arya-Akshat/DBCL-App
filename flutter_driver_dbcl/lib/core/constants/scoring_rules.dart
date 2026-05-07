@@ -15,7 +15,7 @@ class ScoringRules {
   static const int hardBrakeCooldownMs = 15000;
   static const int fatigueCooldownMs = 30000;
   static const int drowsyCooldownMs = 15000;
-  static const int distractionCooldownMs = 10000;
+  static const int distractionCooldownMs = 5000;
   static const int faceFailCooldownMs = 120000;
   static const int maxHardBrakesPerTrip = 3;
 

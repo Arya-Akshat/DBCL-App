@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../models/event_record.dart';
 import '../providers/app_providers.dart';
 import '../presentation/providers/monitoring_provider.dart';
+import '../core/constants/scoring_rules.dart';
 
 final eventsProvider = FutureProvider.autoDispose<List<EventRecord>>((ref) async {
   final session = ref.watch(appControllerProvider).valueOrNull?.session;
@@ -48,13 +49,24 @@ class EventsScreen extends ConsumerWidget {
                 distractionDetected: (_) => 'distraction',
                 recoveryBonus: (reason, _) => 'recovery_$reason',
               );
+              int eventPoints = 0;
+              switch (type) {
+                case 'drowsiness': eventPoints = ScoringRules.drowsyPenalty; break;
+                case 'distraction': eventPoints = ScoringRules.distractionPenalty; break;
+                case 'fatigue': eventPoints = ScoringRules.fatiguePenalty; break;
+                case 'alcohol': eventPoints = ScoringRules.alcoholPenalty; break;
+                case 'hard_brake': eventPoints = ScoringRules.hardBrakePenalty; break;
+                default:
+                  if (type.startsWith('recovery_')) eventPoints = 1; // Default recovery display
+              }
+
               return EventRecord(
                 id: 'live-${now.millisecondsSinceEpoch}',
                 type: type,
                 duration: 1.0,
-                points: type == 'drowsiness' ? -50 : -20,
+                points: eventPoints,
                 timestamp: now,
-                isRecovery: false,
+                isRecovery: type.startsWith('recovery_'),
               );
             }).toList();
 
